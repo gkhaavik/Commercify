@@ -53,4 +53,12 @@ public class PaymentService {
 
         return PaymentResponse.FailedPayment();
     }
+
+    public void updatePaymentStatus(Long orderId, PaymentStatus paymentStatus) {
+        Optional<PaymentEntity> payment = paymentRepository.findByOrderId(orderId);
+        payment.ifPresent(p -> {
+            p.setStatus(paymentStatus);
+            paymentRepository.save(p);
+        });
+    }
 }

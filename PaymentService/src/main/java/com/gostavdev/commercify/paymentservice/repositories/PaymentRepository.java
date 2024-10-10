@@ -9,4 +9,6 @@ import java.util.Optional;
 @Repository
 public interface PaymentRepository extends JpaRepository<PaymentEntity, Long> {
     Optional<PaymentEntity> findByOrderId(Long orderId);
+
+    Optional<PaymentEntity> findByStripePaymentIntent(String stripePaymentIntent);
 }

@@ -8,6 +8,7 @@ import com.gostavdev.commercify.paymentservice.entities.PaymentStatus;
 import com.gostavdev.commercify.paymentservice.exceptions.InvalidEventDataException;
 import com.gostavdev.commercify.paymentservice.repositories.PaymentRepository;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.Product;
 import com.stripe.model.checkout.Session;
@@ -22,6 +23,7 @@ import java.util.List;
 public class StripeService {
     private final PaymentRepository paymentRepository;
     private final OrderClient orderClient;
+    private final PaymentService paymentService;
 
     public PaymentResponse checkoutSession(PaymentRequest paymentRequest) {
         OrderDTO order = orderClient.getOrderById(paymentRequest.orderId());
@@ -65,7 +67,7 @@ public class StripeService {
                     .orderId(paymentRequest.orderId())
                     .stripePaymentIntent(session.getPaymentIntent())
                     .paymentProvider(PaymentProvider.STRIPE)
-                    .status(PaymentStatus.PAID)
+                    .status(PaymentStatus.PENDING)
                     .build();
             paymentRepository.save(payment);
 
@@ -96,6 +98,20 @@ public class StripeService {
         paymentRepository.save(payment);
 
         return new CancelPaymentResponse(true, "Payment cancelled successfully");
+    }
+
+    public void handlePaymentSucceeded(Event event) {
+        PaymentIntent paymentIntent = (PaymentIntent) event.getDataObjectDeserializer().getObject().get();
+        PaymentEntity payment = paymentRepository.findByStripePaymentIntent(paymentIntent.getId())
+                .orElseThrow(() -> new RuntimeException("Payment not found with ID: " + paymentIntent.getId()));
+        paymentService.updatePaymentStatus(payment.getOrderId(), PaymentStatus.PAID);
+    }
+
+    public void handlePaymentFailed(Event event) {
+        PaymentIntent paymentIntent = (PaymentIntent) event.getDataObjectDeserializer().getObject().get();
+        PaymentEntity payment = paymentRepository.findByStripePaymentIntent(paymentIntent.getId())
+                .orElseThrow(() -> new RuntimeException("Payment not found with ID: " + paymentIntent.getId()));
+        paymentService.updatePaymentStatus(payment.getOrderId(), PaymentStatus.FAILED);
     }
 }
 
